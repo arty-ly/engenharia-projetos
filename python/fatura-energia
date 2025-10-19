@@ -1,0 +1,173 @@
+tarifas_baixa_renda=[(30,0.22676),(100,0.38873),(220,0.58309),(999999,0.64788)]
+tarifa_normal=0.71081
+
+tarifa_branca_ponta=1.59405
+tarifa_branca_inter=1.01052
+tarifa_branca_fora=0.56942
+
+bandeira_verde=0.0
+bandeira_amarela=0.01885
+bandeira_vermelha1=0.04463
+bandeira_vermelha2=0.07877
+
+juros_dinheiro=0.0
+juros_pix=0.0025
+juros_debito=0.02
+juros_credito=0.05
+
+def validar_nome(nome):
+    nome=nome.strip()
+    return nome!='' and all(parte.isalpha() for parte in nome.split())
+
+def solicitar_dados_entrada():
+    while True:
+        nome=input("Digite o nome completo do consumidor: ")
+        if validar_nome(nome):
+            break
+        print("Nome invalido. Use apenas letras e espacos.")
+
+    print("Tipos de tarifa:")
+    print("1-Baixa Renda")
+    print("2-Normal")
+    print("3-Branca")
+    while True:
+        tipo=input("Escolha a tarifa (1/2/3): ")
+        if tipo in ['1','2','3']:
+            break
+        print("Opcao invalida. Digite 1, 2 ou 3.")
+
+    while True:
+        try:
+            consumo=float(input("Digite o consumo do mes em kWh: "))
+            if consumo>=0:
+                break
+        except ValueError:
+            pass
+        print("Consumo invalido. Digite um numero positivo.")
+
+    print("Bandeiras disponiveis:")
+    print("1 - Verde")
+    print("2 - Amarela")
+    print("3 - Vermelha 1")
+    print("4 - Vermelha 2")
+    while True:
+        bandeira_opcao = input("Escolha a bandeira (1/2/3/4): ")
+        if bandeira_opcao in ['1','2','3','4']:
+            break
+        print("Opcao invalida. Digite 1, 2, 3 ou 4.")
+
+    print("Formas de pagamento disponiveis:")
+    print("dinheiro, pix, debito, credito")
+    while True:
+        pagamento=input("Digite a forma de pagamento: ").lower()
+        if pagamento in ['dinheiro','pix','debito','credito']:
+            break
+        print("Forma invalida. Tente novamente.")
+
+    return nome,tipo,consumo,bandeira_opcao,pagamento
+
+def calcular_consumo_base(tipo,consumo):
+    if tipo=='1':
+        valor=0
+        restante=consumo
+        anterior=0
+        for limite,preco in tarifas_baixa_renda:
+            faixa=min(restante,limite-anterior)
+            valor+=faixa*preco
+            restante-=faixa
+            anterior=limite
+            if restante<=0:
+                break
+        return valor
+
+    elif tipo=='2':
+        return consumo*tarifa_normal
+
+    elif tipo=='3':
+        ponta=consumo*0.10*tarifa_branca_ponta
+        inter=consumo*0.25*tarifa_branca_inter
+        fora=consumo*0.65*tarifa_branca_fora
+        return ponta+inter+fora
+
+def calcular_impostos(valor,consumo):
+    if consumo<=50:
+        icms=0
+    else:
+        icms=0.2*valor
+
+    pis=0.0165*valor
+    cofins=0.076*valor
+    return icms,pis,cofins
+
+def calcular_juros(valor,forma):
+    if forma=='dinheiro':
+        return valor*juros_dinheiro
+    elif forma=='pix':
+        return valor*juros_pix
+    elif forma=='debito':
+        return valor*juros_debito
+    elif forma=='credito':
+        return valor*juros_credito
+
+def exibir_relatorio_final(nome,tipo,consumo,valor_base,bandeira_nome,bandeira_valor,impostos,juros,total,forma_pagamento):
+    print("\n===== RELATORIO DA FATURA =====")
+    print("Nome do consumidor:", nome)
+
+    if tipo == '1':
+        print("Tipo de Tarifa: Baixa Renda")
+    elif tipo == '2':
+        print("Tipo de Tarifa: Normal")
+    elif tipo == '3':
+        print("Tipo de Tarifa: Branca")
+
+    print("Consumo do mes:", consumo, "kWh")
+    print("Valor base do consumo: R$", format(valor_base, '.4f').replace('.', ','))
+    print("Bandeira tarifaria:", bandeira_nome, "(+R$", format(bandeira_valor, '.4f').replace('.', ','), ")")
+    print("ICMS: R$", format(impostos[0], '.4f').replace('.', ','))
+    print("PIS: R$", format(impostos[1], '.4f').replace('.', ','))
+    print("COFINS: R$", format(impostos[2], '.4f').replace('.', ','))
+    print("Juros (pagamento por", forma_pagamento + "):", "R$", format(juros, '.4f').replace('.', ','))
+    print("VALOR TOTAL A PAGAR: R$", format(total, '.4f').replace('.', ','))
+    print("===============================\n")
+
+def main():
+    while True:
+        print("\n--- MENU PRINCIPAL ---")
+        print("1 - Novo Calculo de Fatura")
+        print("S - Sair")
+        opcao=input("Escolha uma opcao: ").lower()
+
+        if opcao=='s':
+            print("Encerrando o programa. Ate logo!")
+            break
+
+        elif opcao=='1':
+            nome,tipo,consumo,bandeira_opcao,forma_pagamento=solicitar_dados_entrada()
+
+            valor_base=calcular_consumo_base(tipo,consumo)
+
+            if bandeira_opcao == '1':
+                bandeira_nome = "Verde"
+                bandeira_valor = consumo * bandeira_verde
+            elif bandeira_opcao == '2':
+                bandeira_nome = "Amarela"
+                bandeira_valor = consumo * bandeira_amarela
+            elif bandeira_opcao == '3':
+                bandeira_nome = "Vermelha 1"
+                bandeira_valor = consumo * bandeira_vermelha1
+            elif bandeira_opcao == '4':
+                bandeira_nome = "Vermelha 2"
+                bandeira_valor = consumo * bandeira_vermelha2
+
+            valor_com_bandeira=valor_base+bandeira_valor
+            impostos=calcular_impostos(valor_com_bandeira,consumo)
+            valor_total_parcial=valor_com_bandeira+impostos[0]+impostos[1]+impostos[2]
+            juros=calcular_juros(valor_total_parcial,forma_pagamento)
+            total=valor_total_parcial+juros
+
+            exibir_relatorio_final(nome,tipo,consumo,valor_base,bandeira_nome,bandeira_valor,impostos,juros,total,forma_pagamento)
+
+        else:
+            print("Opcao invalida. Tente novamente.")
+
+main()
